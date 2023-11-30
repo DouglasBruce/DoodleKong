@@ -11,6 +11,7 @@ fun main() {
 }
 
 fun Application.module() {
+    configureSession()
     configureSerialization()
     configureSockets()
     configureMonitoring()
