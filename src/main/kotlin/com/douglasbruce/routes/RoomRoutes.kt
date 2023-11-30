@@ -3,6 +3,7 @@ package com.douglasbruce.routes
 import com.douglasbruce.data.Room
 import com.douglasbruce.data.models.BasicApiResponse
 import com.douglasbruce.data.models.CreateRoomRequest
+import com.douglasbruce.data.models.RoomResponse
 import com.douglasbruce.server
 import com.douglasbruce.utils.Constants.MAX_ROOM_SIZE
 import io.ktor.http.*
@@ -50,6 +51,28 @@ fun Route.createRoomRoute() {
             )
             server.rooms[roomRequest.name] = room
             call.respond(HttpStatusCode.OK, BasicApiResponse(true))
+        }
+    }
+}
+
+fun Route.getRoomsRoute() {
+    route("/api/getRooms") {
+        get {
+            val searchQuery = call.parameters["searchQuery"]
+            if (searchQuery == null) {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
+
+            val roomsResult = server.rooms.filterKeys {
+                it.contains(searchQuery, ignoreCase = true)
+            }
+
+            val roomResponses = roomsResult.values.map {
+                RoomResponse(it.name, it.maxPlayers, it.players.size)
+            }.sortedBy { it.name }
+
+            call.respond(HttpStatusCode.OK, roomResponses)
         }
     }
 }
