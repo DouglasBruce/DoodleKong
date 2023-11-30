@@ -10,6 +10,8 @@ fun main() {
         .start(wait = true)
 }
 
+val server = DrawingServer()
+
 fun Application.module() {
     configureSession()
     configureSerialization()

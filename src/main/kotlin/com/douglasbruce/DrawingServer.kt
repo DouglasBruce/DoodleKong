@@ -6,7 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class DrawingServer {
 
-    private val rooms = ConcurrentHashMap<String, Room>()
+    val rooms = ConcurrentHashMap<String, Room>()
     private val players = ConcurrentHashMap<String, Player>()
 
     fun playerJoined(player: Player) {
