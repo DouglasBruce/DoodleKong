@@ -10,6 +10,7 @@ import com.douglasbruce.utils.Constants.TYPE_ANNOUNCEMENT
 import com.douglasbruce.utils.Constants.TYPE_CHAT_MESSAGE
 import com.douglasbruce.utils.Constants.TYPE_DRAW_DATA
 import com.douglasbruce.utils.Constants.TYPE_JOIN_ROOM_HANDSHAKE
+import com.douglasbruce.utils.Constants.TYPE_PHASE_CHANGE
 import com.google.gson.JsonParser
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
@@ -77,6 +78,7 @@ fun Route.standardWebSocket(
                         TYPE_DRAW_DATA -> DrawData::class.java
                         TYPE_ANNOUNCEMENT -> Announcement::class.java
                         TYPE_JOIN_ROOM_HANDSHAKE -> JoinRoomHandshake::class.java
+                        TYPE_PHASE_CHANGE -> PhaseChange::class.java
                         else -> BaseModel::class.java
                     }
                     val payload = gson.fromJson(message, type)
