@@ -1,6 +1,7 @@
 package com.douglasbruce.plugins
 
 import com.douglasbruce.routes.createRoomRoute
+import com.douglasbruce.routes.gameWebSocketRoute
 import com.douglasbruce.routes.getRoomsRoute
 import com.douglasbruce.routes.joinRoomRoute
 import io.ktor.server.application.*
@@ -11,5 +12,6 @@ fun Application.configureRouting() {
         createRoomRoute()
         getRoomsRoute()
         joinRoomRoute()
+        gameWebSocketRoute()
     }
 }
