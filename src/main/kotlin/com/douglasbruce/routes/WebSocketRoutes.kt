@@ -1,14 +1,15 @@
 package com.douglasbruce.routes
 
+import com.douglasbruce.data.Player
 import com.douglasbruce.data.Room
-import com.douglasbruce.data.models.BaseModel
-import com.douglasbruce.data.models.ChatMessage
-import com.douglasbruce.data.models.DrawData
+import com.douglasbruce.data.models.*
 import com.douglasbruce.gson
 import com.douglasbruce.server
 import com.douglasbruce.session.DrawingSession
+import com.douglasbruce.utils.Constants.TYPE_ANNOUNCEMENT
 import com.douglasbruce.utils.Constants.TYPE_CHAT_MESSAGE
 import com.douglasbruce.utils.Constants.TYPE_DRAW_DATA
+import com.douglasbruce.utils.Constants.TYPE_JOIN_ROOM_HANDSHAKE
 import com.google.gson.JsonParser
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
@@ -29,6 +30,22 @@ fun Route.gameWebSocketRoute() {
 
                 is ChatMessage -> {
 
+                }
+
+                is JoinRoomHandshake -> {
+                    val room = server.rooms[payload.roomName]
+                    if (room == null) {
+                        val gameError = GameError(GameError.ERROR_ROOM_NOT_FOUND)
+                        socket.send(Frame.Text(gson.toJson(gameError)))
+                        return@standardWebSocket
+                    }
+
+                    val player = Player(payload.username, socket, payload.clientId)
+                    server.playerJoined(player)
+
+                    if (!room.containsPlayer(player.username)) {
+                        room.addPlayer(player.clientId, player.username, socket)
+                    }
                 }
             }
         }
@@ -58,6 +75,8 @@ fun Route.standardWebSocket(
                     val type = when (jsonObject.get("type").asString) {
                         TYPE_CHAT_MESSAGE -> ChatMessage::class.java
                         TYPE_DRAW_DATA -> DrawData::class.java
+                        TYPE_ANNOUNCEMENT -> Announcement::class.java
+                        TYPE_JOIN_ROOM_HANDSHAKE -> JoinRoomHandshake::class.java
                         else -> BaseModel::class.java
                     }
                     val payload = gson.fromJson(message, type)
