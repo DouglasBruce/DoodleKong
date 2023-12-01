@@ -1,16 +1,39 @@
 package com.douglasbruce.routes
 
+import com.douglasbruce.data.Room
 import com.douglasbruce.data.models.BaseModel
 import com.douglasbruce.data.models.ChatMessage
+import com.douglasbruce.data.models.DrawData
 import com.douglasbruce.gson
+import com.douglasbruce.server
 import com.douglasbruce.session.DrawingSession
 import com.douglasbruce.utils.Constants.TYPE_CHAT_MESSAGE
+import com.douglasbruce.utils.Constants.TYPE_DRAW_DATA
 import com.google.gson.JsonParser
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.channels.consumeEach
+
+fun Route.gameWebSocketRoute() {
+    route("/ws/draw") {
+        standardWebSocket { socket, clientId, message, payload ->
+            when (payload) {
+                is DrawData -> {
+                    val room = server.rooms[payload.roomName] ?: return@standardWebSocket
+                    if (room.phase == Room.Phase.GAME_RUNNING) {
+                        room.broadcastToAllExcept(message, clientId)
+                    }
+                }
+
+                is ChatMessage -> {
+
+                }
+            }
+        }
+    }
+}
 
 fun Route.standardWebSocket(
     handleFrame: suspend (
@@ -32,8 +55,9 @@ fun Route.standardWebSocket(
                 if (frame is Frame.Text) {
                     val message = frame.readText()
                     val jsonObject = JsonParser.parseString(message).asJsonObject
-                    val type = when(jsonObject.get("type").asString) {
+                    val type = when (jsonObject.get("type").asString) {
                         TYPE_CHAT_MESSAGE -> ChatMessage::class.java
+                        TYPE_DRAW_DATA -> DrawData::class.java
                         else -> BaseModel::class.java
                     }
                     val payload = gson.fromJson(message, type)
@@ -42,8 +66,7 @@ fun Route.standardWebSocket(
             }
         } catch (e: Exception) {
             e.printStackTrace()
-        }
-        finally {
+        } finally {
             // Handle disconnects
         }
     }
