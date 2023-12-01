@@ -8,6 +8,7 @@ import com.douglasbruce.server
 import com.douglasbruce.session.DrawingSession
 import com.douglasbruce.utils.Constants.TYPE_ANNOUNCEMENT
 import com.douglasbruce.utils.Constants.TYPE_CHAT_MESSAGE
+import com.douglasbruce.utils.Constants.TYPE_CHOSEN_WORD
 import com.douglasbruce.utils.Constants.TYPE_DRAW_DATA
 import com.douglasbruce.utils.Constants.TYPE_JOIN_ROOM_HANDSHAKE
 import com.douglasbruce.utils.Constants.TYPE_PHASE_CHANGE
@@ -48,6 +49,11 @@ fun Route.gameWebSocketRoute() {
                         room.addPlayer(player.clientId, player.username, socket)
                     }
                 }
+
+                is ChosenWord -> {
+                    val room = server.rooms[payload.roomName] ?: return@standardWebSocket
+                    room.setWordAndSwitchToGameRunning(payload.chosenWord)
+                }
             }
         }
     }
@@ -79,6 +85,7 @@ fun Route.standardWebSocket(
                         TYPE_ANNOUNCEMENT -> Announcement::class.java
                         TYPE_JOIN_ROOM_HANDSHAKE -> JoinRoomHandshake::class.java
                         TYPE_PHASE_CHANGE -> PhaseChange::class.java
+                        TYPE_CHOSEN_WORD -> ChosenWord::class.java
                         else -> BaseModel::class.java
                     }
                     val payload = gson.fromJson(message, type)
