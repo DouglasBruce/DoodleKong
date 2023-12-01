@@ -1,23 +1,24 @@
 package com.douglasbruce.data
 
-import com.douglasbruce.data.models.Announcement
-import com.douglasbruce.data.models.ChosenWord
-import com.douglasbruce.data.models.PhaseChange
+import com.douglasbruce.data.models.*
 import com.douglasbruce.gson
+import com.douglasbruce.utils.getRandomWords
+import com.douglasbruce.utils.transformToUnderscores
+import com.douglasbruce.utils.words
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 
 @OptIn(DelicateCoroutinesApi::class)
 class Room(
-    val name: String,
-    val maxPlayers: Int,
-    var players: List<Player> = emptyList()
+    val name: String, val maxPlayers: Int, var players: List<Player> = emptyList()
 ) {
 
     private var timerJob: Job? = null
     private var drawingPlayer: Player? = null
     private var winningPlayers: List<String> = emptyList()
     private var word: String? = null
+    private var curWords: List<String>? = null
+    private var drawingPlayerIndex: Int = 0
 
     private var phaseChangedListener: ((Phase) -> Unit)? = null
     var phase = Phase.WAITING_FOR_PLAYERS
@@ -99,9 +100,7 @@ class Room(
         timerJob?.cancel()
         timerJob = GlobalScope.launch {
             val phaseChange = PhaseChange(
-                phase,
-                ms,
-                drawingPlayer?.username
+                phase, ms, drawingPlayer?.username
             )
 
             repeat((ms / UPDATE_TIME_FREQUENCY).toInt()) {
@@ -145,11 +144,34 @@ class Room(
     }
 
     private fun newRound() {
-
+        curWords = getRandomWords(3)
+        val newWords = NewWords(curWords!!)
+        nextDrawingPlayer()
+        GlobalScope.launch {
+            drawingPlayer?.socket?.send(Frame.Text(gson.toJson(newWords)))
+            timeAndNotify(DELAY_NEW_ROUND_TO_GAME_RUNNING)
+        }
     }
 
     private fun gameRunning() {
-
+        winningPlayers = emptyList()
+        val wordToSend = word ?: curWords?.random() ?: words.random()
+        val wordWithUnderscores = wordToSend.transformToUnderscores()
+        val drawingUsername = (drawingPlayer ?: players.random()).username
+        val gameStateForDrawingPlayer = GameState(
+            drawingUsername, wordToSend
+        )
+        val gameStateForGuessingPlayers = GameState(
+            drawingUsername, wordWithUnderscores
+        )
+        GlobalScope.launch {
+            broadcastToAllExcept(
+                gson.toJson(gameStateForGuessingPlayers),
+                drawingPlayer?.clientId ?: players.random().clientId,
+            )
+            drawingPlayer?.socket?.send(Frame.Text(gson.toJson(gameStateForDrawingPlayer)))
+            timeAndNotify(DELAY_GAME_RUNNING_TO_SHOW_WORD)
+        }
     }
 
     private fun showWord() {
@@ -171,12 +193,22 @@ class Room(
         }
     }
 
+    private fun nextDrawingPlayer() {
+        drawingPlayer?.isDrawing = false
+        if (players.isEmpty()) {
+            return
+        }
+
+        drawingPlayer = if (drawingPlayerIndex <= players.size - 1) {
+            players[drawingPlayerIndex]
+        } else players.last()
+
+        if (drawingPlayerIndex < players.size - 1) drawingPlayerIndex++
+        else drawingPlayerIndex = 0
+    }
+
     enum class Phase {
-        WAITING_FOR_PLAYERS,
-        WAITING_FOR_START,
-        NEW_ROUND,
-        GAME_RUNNING,
-        SHOW_WORD,
+        WAITING_FOR_PLAYERS, WAITING_FOR_START, NEW_ROUND, GAME_RUNNING, SHOW_WORD,
     }
 
     companion object {
